@@ -1,0 +1,56 @@
+services:
+  loja_backend:
+    build: .
+    container_name: loja_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/codigo
+    depends_on:
+      - banco_postgres
+      - banco_mongo
+      - banco_redis
+    environment:
+      POSTGRES_HOST: banco_postgres
+      POSTGRES_DB: loja_cosmeticos
+      POSTGRES_USER: aluna
+      POSTGRES_PASSWORD: senha123
+      MONGO_URL: mongodb://banco_mongo:27017
+      REDIS_HOST: banco_redis
+    command: uvicorn app.principal:app --host 0.0.0.0 --port 8000 --reload
+
+  banco_postgres:
+    image: postgres:16
+    container_name: banco_postgres_loja
+    restart: always
+    environment:
+      POSTGRES_DB: loja_cosmeticos
+      POSTGRES_USER: aluna
+      POSTGRES_PASSWORD: senha123
+    ports:
+      - "5432:5432"
+    volumes:
+      - dados_postgres:/var/lib/postgresql/data
+
+  banco_mongo:
+    image: mongo:7
+    container_name: banco_mongo_loja
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - dados_mongo:/data/db
+
+  banco_redis:
+    image: redis:7
+    container_name: banco_redis_loja
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - dados_redis:/data
+
+volumes:
+  dados_postgres:
+  dados_mongo:
+  dados_redis:
