@@ -158,9 +158,7 @@ Loja-cosmeticos/
 │   ├── templates/
 │   │   └── index.html        # html da interface
 │   └── principal.py          # Inicialização da aplicação
-├── Dockerfile
-├── docker-compose.yml
-└── requirements.txt
+
 ```
 ## Autores
 > Natasha Trindade RA: 22.123.098-0
