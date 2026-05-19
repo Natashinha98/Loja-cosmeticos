@@ -1,27 +1,27 @@
-# Sistema de Gerenciamento de Loja de Cosmeticos virtual
+# Sistema de Gerenciamento de Loja de Cosméticos Virtual
 
 ---
 
-## 1. Tema 
+## 1. Tema
 
-O tema é um **Sistema de Gerenciamento de Loja de Cosmeticos virtual**. O sistema permite gerenciar clientes, produtos, carrinhos de compra e pedidos por meio de uma API REST com interface web.
+O tema é um **Sistema de Gerenciamento de Loja de Cosméticos Virtual**. O sistema permite gerenciar clientes, produtos, carrinhos de compra e pedidos por meio de uma API REST com interface web.
 
 A aplicação segue a arquitetura exigida:
 
-```
+```text
 Frontend (HTML + JS)
        ↕
    Backend (FastAPI)
     ↙    ↓    ↘
-Postgres  MongoDB  Redis
-(RDB)    (DB1)   (DB2)
+PostgreSQL  MongoDB  Redis
+  (RDB)     (DB1)    (DB2)
 ```
 
-- **Frontend** : interface web para criar, visualizar, editar e remover clientes, produtos, carrinhos e pedidos
-- **Backend** : API REST em FastAPI com quatro módulos de rotas independentes: `/clientes`, `/produtos`, `/carrinho` e `/pedidos`
-- **RDB (PostgreSQL)** : banco relacional para clientes e pedidos
-- **DB1 (MongoDB)** : banco de documentos para o catálogo de produtos
-- **DB2 (Redis)** : banco chave-valor para carrinhos de compra dos clientes e cache da listagem de produtos
+- **Frontend**: interface web para criar, visualizar, editar e remover clientes, produtos, carrinhos e pedidos.
+- **Backend**: API REST em FastAPI com quatro módulos de rotas independentes: `/clientes`, `/produtos`, `/carrinho` e `/pedidos`.
+- **RDB (PostgreSQL)**: banco relacional para clientes e pedidos.
+- **DB1 (MongoDB)**: banco de documentos para o catálogo de produtos.
+- **DB2 (Redis)**: banco chave-valor para carrinhos de compra dos clientes e cache da listagem de produtos.
 
 ---
 
@@ -31,27 +31,27 @@ Postgres  MongoDB  Redis
 
 **O que armazena:** clientes e pedidos.
 
-Clientes têm estrutura bem definida e estável. Pedidos, por sua vez, têm uma relação direta com clientes  todo pedido pertence a um cliente cadastrado  o que torna o modelo relacional a escolha natural para garantir integridade dos dados.
+Clientes têm estrutura bem definida e estável. Pedidos, por sua vez, têm uma relação direta com clientes: todo pedido pertence a um cliente cadastrado, o que torna o modelo relacional a escolha natural para garantir integridade dos dados.
 
-Além disso, pedidos e clientes são entidades críticas para o negócio: consistência e transações ACID são essenciais para evitar dados corrompidos (ex: pedido criado para um cliente inexistente). A tabela de pedidos possui uma chave estrangeira (`ForeignKey`) para a tabela de clientes, reforçando a integridade referencial no próprio banco relacional.
+Além disso, pedidos e clientes são entidades críticas para o negócio. Consistência e transações ACID são importantes para evitar dados corrompidos, como um pedido criado para um cliente inexistente. A tabela de pedidos possui uma chave estrangeira (`ForeignKey`) para a tabela de clientes, reforçando a integridade referencial no próprio banco relacional.
 
 ### MongoDB (DB1)
 
 **O que armazena:** catálogo de produtos.
 
-Produtos de cosméticos têm características que variam bastante por categoria: um batom tem "tom" e "acabamento", um hidratante tem "tipo de pele" e "fragrância", uma máscara de cílios tem "tipo de escova". Um esquema rígido de tabela relacional exigiria muitas colunas opcionais ou tabelas auxiliares para cobrir essa variação.
+Produtos de cosméticos têm características que variam bastante por categoria. Um batom pode ter "tom" e "acabamento", um hidratante pode ter "tipo de pele" e "fragrância", e uma máscara de cílios pode ter "tipo de escova". Um esquema rígido de tabela relacional exigiria muitas colunas opcionais ou tabelas auxiliares para cobrir essa variação.
 
-O MongoDB armazena cada produto como um documento JSON flexível, permitindo que cada categoria tenha seus próprios campos sem alterar o esquema do banco. Isso torna o cadastro de novos tipos de produtos muito mais simples e adaptável.
+O MongoDB armazena cada produto como um documento JSON flexível, permitindo que cada categoria tenha seus próprios campos sem alterar o esquema do banco. Isso torna o cadastro de novos tipos de produtos mais simples e adaptável.
 
 ### Redis (DB2)
 
 **O que armazena:** dois tipos de dado, ambos chave-valor:
 
-1. **Carrinho de compras de cada cliente** (dado primário) — armazenado sob a chave `carrinho:{id_cliente}` com TTL de 30 minutos. O carrinho é a única fonte deste dado: enquanto não vira pedido, ele existe somente no Redis. O TTL nativo do Redis garante limpeza automática de carrinhos abandonados sem precisar de cron job ou processo de manutenção.
+1. **Carrinho de compras de cada cliente** (dado primário): armazenado sob a chave `carrinho:{id_cliente}` com TTL de 30 minutos. O carrinho é a única fonte deste dado: enquanto não vira pedido, ele existe somente no Redis. O TTL nativo do Redis garante limpeza automática de carrinhos abandonados sem precisar de cron job ou processo de manutenção.
 
-2. **Cache da listagem de produtos** (dado derivado) — armazenado sob a chave `lista_produtos` com TTL de 60 segundos. A operação `GET /produtos` é a mais consultada da loja; ao invés de buscar tudo do MongoDB a cada requisição, a resposta fica cacheada. Toda escrita de produto (POST, PUT, DELETE) invalida o cache para garantir que a próxima leitura traga dados atualizados.
+2. **Cache da listagem de produtos** (dado derivado): armazenado sob a chave `lista_produtos` com TTL de 60 segundos. A operação `GET /produtos` é uma das mais consultadas da loja. Em vez de buscar todos os produtos do MongoDB a cada requisição, a resposta fica cacheada no Redis. Toda escrita de produto (`POST`, `PUT` e `DELETE`) invalida o cache para garantir que a próxima leitura traga dados atualizados.
 
-O modelo chave-valor do Redis encaixa perfeitamente nos dois usos: estrutura simples, leitura e escrita em memória (latência sub-milissegundo) e suporte nativo a TTL.
+O modelo chave-valor do Redis encaixa bem nos dois usos: estrutura simples, leitura e escrita rápidas em memória e suporte nativo a TTL.
 
 ### Implementação do Backend
 
@@ -64,19 +64,21 @@ O backend é implementado em **FastAPI** com quatro módulos de rotas independen
 | Carrinho | `app/rotas/carrinho.py` | Redis (primário) + MongoDB (consulta) |
 | Pedidos | `app/rotas/pedidos.py` | PostgreSQL + MongoDB |
 
-O módulo de carrinho usa o Redis como armazenamento primário (cada carrinho é uma chave independente com TTL) e consulta o MongoDB apenas para enriquecer a resposta com nome e preço atualizados de cada produto.
+O módulo de carrinho usa o Redis como armazenamento primário. Cada carrinho é uma chave independente com TTL, e o MongoDB é consultado apenas para enriquecer a resposta com nome e preço atualizados de cada produto.
 
-O módulo de pedidos cruza Postgres + Mongo: valida o cliente no PostgreSQL e busca os dados de cada produto no MongoDB para montar o pedido. A finalização de um carrinho (`POST /carrinho/{id_cliente}/finalizar`) lê o Redis, monta o pedido com os dados atuais do Mongo, salva no Postgres e apaga a chave do carrinho.
+O módulo de pedidos cruza PostgreSQL e MongoDB: valida o cliente no PostgreSQL e busca os dados de cada produto no MongoDB para montar o pedido. A finalização de um carrinho (`POST /carrinho/{id_cliente}/finalizar`) lê o Redis, monta o pedido com os dados atuais do MongoDB, salva no PostgreSQL e apaga a chave do carrinho.
 
 ---
 
 ## 3. Como executar o projeto
 
-O projeto roda via **GitHub Codespaces** (recomendado) ou localmente em qualquer máquina com Docker.
+O projeto pode ser executado pelo **GitHub Codespaces**, sem necessidade de instalar Docker localmente.
 
-### Passo a passo (Codespaces)
+### Passo a passo
 
-**1. Abra o repositório no Codespace pelo GitHub.**
+**1. Abra o repositório no GitHub Codespaces.**
+
+No GitHub, acesse o repositório, clique em **Code**, depois em **Codespaces** e crie um novo Codespace.
 
 **2. No terminal do Codespace, rode:**
 
@@ -84,17 +86,28 @@ O projeto roda via **GitHub Codespaces** (recomendado) ou localmente em qualquer
 docker compose up --build
 ```
 
-> O backend agora espera os bancos ficarem **saudáveis** antes de subir (via healthcheck do Postgres, Mongo e Redis). Diferente da versão anterior, **não é mais preciso rodar duas vezes** — a primeira execução já funciona corretamente.
+**3. Aguarde os serviços iniciarem.**
 
-**3. Abra a aba "Portas" no Codespace** (ao lado do terminal), localize a porta `8000`, clique com o botão direito e defina a visibilidade como **Pública**.
+O Docker irá subir os seguintes serviços:
 
-**4. Clique no ícone de abrir no navegador** ao lado da porta `8000` para acessar a loja.
+- Backend FastAPI;
+- PostgreSQL;
+- MongoDB;
+- Redis.
 
-> Na primeira execução, o sistema popula automaticamente o MongoDB com 3 produtos de exemplo para que a loja já tenha dados visíveis.
+Caso algum serviço falhe na primeira execução, pare com `Ctrl + C` e rode novamente:
 
-### Execução local (alternativa)
+```bash
+docker compose up --build
+```
 
-Se preferir rodar localmente, basta ter o Docker instalado (Docker Desktop no Windows/Mac, ou docker engine no Linux) e rodar `docker compose up --build` no diretório do projeto. A loja fica acessível em `http://localhost:8000`.
+**4. Abra a aplicação.**
+
+No Codespaces, acesse a aba **Ports**, localize a porta `8000` e clique no ícone de abrir no navegador.
+
+A loja será carregada pelo backend FastAPI.
+
+> Na primeira execução, o sistema popula automaticamente o MongoDB com produtos de exemplo para que a loja já tenha dados visíveis.
 
 ### Serviços e portas
 
@@ -105,13 +118,14 @@ Se preferir rodar localmente, basta ter o Docker instalado (Docker Desktop no Wi
 | `banco_mongo_loja` | MongoDB 7 | `27017` |
 | `banco_redis_loja` | Redis 7 | `6379` |
 
-Os dados são persistidos em volumes Docker e sobrevivem a reinicializações (exceto carrinhos, que expiram em 30 minutos por TTL).
+Os dados são persistidos em volumes Docker e sobrevivem a reinicializações, exceto carrinhos, que expiram em 30 minutos por TTL.
 
 ---
 
-## Endpoints disponíveis
+## 4. Endpoints disponíveis
 
-### Clientes 
+### Clientes
+
 | Método | Rota | Ação |
 |---|---|---|
 | `POST` | `/clientes/` | Cadastrar cliente |
@@ -119,16 +133,18 @@ Os dados são persistidos em volumes Docker e sobrevivem a reinicializações (e
 | `PUT` | `/clientes/{id}` | Editar cliente |
 | `DELETE` | `/clientes/{id}` | Remover cliente, desde que não possua pedidos vinculados |
 
-### Produtos 
+### Produtos
+
 | Método | Rota | Ação |
 |---|---|---|
 | `POST` | `/produtos/` | Cadastrar produto |
-| `GET` | `/produtos/` | Listar produtos (com cache Redis) |
+| `GET` | `/produtos/` | Listar produtos com cache Redis |
 | `GET` | `/produtos/{id}` | Buscar produto por ID |
 | `PUT` | `/produtos/{id}` | Editar produto |
 | `DELETE` | `/produtos/{id}` | Remover produto |
 
 ### Carrinho (Redis)
+
 | Método | Rota | Ação |
 |---|---|---|
 | `GET` | `/carrinho/{id_cliente}` | Ver carrinho do cliente |
@@ -138,19 +154,20 @@ Os dados são persistidos em volumes Docker e sobrevivem a reinicializações (e
 | `DELETE` | `/carrinho/{id_cliente}` | Esvaziar carrinho |
 | `POST` | `/carrinho/{id_cliente}/finalizar` | Converter carrinho em pedido |
 
-### Pedidos 
+### Pedidos
+
 | Método | Rota | Ação |
 |---|---|---|
-| `POST` | `/pedidos/` | Criar pedido diretamente (sem passar pelo carrinho) |
+| `POST` | `/pedidos/` | Criar pedido diretamente, sem passar pelo carrinho |
 | `GET` | `/pedidos/` | Listar pedidos |
 | `PUT` | `/pedidos/{id}` | Editar pedido |
 | `DELETE` | `/pedidos/{id}` | Remover pedido |
 
 ---
 
-## Estrutura do projeto
+## 5. Estrutura do projeto
 
-```
+```text
 Loja-cosmeticos/
 ├── app/
 │   ├── bancos/
@@ -163,15 +180,17 @@ Loja-cosmeticos/
 │   ├── rotas/
 │   │   ├── clientes.py       # CRUD de clientes (PostgreSQL)
 │   │   ├── produtos.py       # CRUD de produtos (MongoDB + Redis cache)
-│   │   ├── carrinho.py       # CRUD do carrinho (Redis primário + Mongo)
+│   │   ├── carrinho.py       # CRUD do carrinho (Redis primário + MongoDB)
 │   │   └── pedidos.py        # CRUD de pedidos (PostgreSQL + MongoDB)
-│   ├── static/               # CSS, JS da interface
+│   ├── static/               # CSS e JS da interface
 │   ├── templates/
-│   │   └── index.html        # html da interface
+│   │   └── index.html        # HTML da interface
 │   └── principal.py          # Inicialização da aplicação
-
 ```
+
+---
+
 ## Autores
-> Natasha Trindade RA: 22.123.098-0
-> 
-> Douglas Honda RA: 22.123.006-3
+
+- Natasha Trindade — RA: 22.123.098-0
+- Douglas Honda — RA: 22.123.006-3
