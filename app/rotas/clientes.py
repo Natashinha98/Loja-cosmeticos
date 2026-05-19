@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.bancos.postgres import pegar_sessao
 from app.modelos.cliente import Cliente
+from app.modelos.pedido import Pedido
 
 rotas_clientes = APIRouter(prefix="/clientes", tags=["clientes"])
 
@@ -13,7 +15,13 @@ def cadastrar_cliente(dados: dict, sessao: Session = Depends(pegar_sessao)):
         telefone=dados.get("telefone", "")
     )
     sessao.add(novo_cliente)
-    sessao.commit()
+
+    try:
+        sessao.commit()
+    except IntegrityError:
+        sessao.rollback()
+        return {"erro": "Ja existe um cliente cadastrado com este email"}
+
     sessao.refresh(novo_cliente)
     return {
         "mensagem": "Cliente cadastrado com sucesso",
@@ -48,7 +56,12 @@ def editar_cliente(id_cliente: int, dados: dict, sessao: Session = Depends(pegar
     cliente.email = dados.get("email", cliente.email)
     cliente.telefone = dados.get("telefone", cliente.telefone)
 
-    sessao.commit()
+    try:
+        sessao.commit()
+    except IntegrityError:
+        sessao.rollback()
+        return {"erro": "Ja existe um cliente cadastrado com este email"}
+
     return {"mensagem": "Cliente editado com sucesso"}
 
 @rotas_clientes.delete("/{id_cliente}")
@@ -56,6 +69,12 @@ def apagar_cliente(id_cliente: int, sessao: Session = Depends(pegar_sessao)):
     cliente = sessao.query(Cliente).filter(Cliente.id_cliente == id_cliente).first()
     if not cliente:
         return {"erro": "Cliente nao encontrado"}
+
+    pedido_vinculado = sessao.query(Pedido).filter(Pedido.id_cliente == id_cliente).first()
+    if pedido_vinculado:
+        return {
+            "erro": "Cliente possui pedidos vinculados e nao pode ser apagado"
+        }
 
     sessao.delete(cliente)
     sessao.commit()

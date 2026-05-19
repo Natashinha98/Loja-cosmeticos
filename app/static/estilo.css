@@ -134,3 +134,41 @@ button:hover {
 .quantidade_produto {
     width: 70px;
 }
+.area_avisos {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 9999;
+    width: min(360px, calc(100vw - 36px));
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.aviso {
+    padding: 12px 14px;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    font-size: 14px;
+    line-height: 1.35;
+    color: white;
+    opacity: 1;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.aviso_erro {
+    background: #9f2f2f;
+}
+
+.aviso_sucesso {
+    background: #2f7d4f;
+}
+
+.aviso_info {
+    background: #5f4b8b;
+}
+
+.aviso.sumindo {
+    opacity: 0;
+    transform: translateY(-6px);
+}

@@ -55,6 +55,25 @@
         </section>
 
         <section class="caixa">
+            <h2>Carrinho de compras (Redis)</h2>
+            <p class="pequeno">
+                O carrinho de cada cliente fica salvo no Redis com expiracao de 30 minutos.
+                Adicione produtos clicando em "+ Carrinho" na lista de produtos abaixo.
+            </p>
+
+            <label>Cliente:</label>
+            <select id="carrinho_cliente" onchange="carregarCarrinho()"></select>
+
+            <h3>Itens no carrinho</h3>
+            <div id="lista_carrinho"></div>
+
+            <div class="acoes">
+                <button onclick="finalizarCarrinho()">Finalizar como pedido</button>
+                <button class="botao_perigo" onclick="esvaziarCarrinho()">Esvaziar carrinho</button>
+            </div>
+        </section>
+
+        <section class="caixa">
             <h2>Clientes cadastrados</h2>
             <button onclick="carregarTudo()">Atualizar listas</button>
             <div id="lista_clientes"></div>

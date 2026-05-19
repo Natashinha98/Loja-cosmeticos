@@ -8,6 +8,7 @@ from app.bancos.mongo import colecao_produtos
 from app.rotas.clientes import rotas_clientes
 from app.rotas.produtos import rotas_produtos
 from app.rotas.pedidos import rotas_pedidos
+from app.rotas.carrinho import rotas_carrinho
 
 app = FastAPI(title="Loja de Cosmeticos Simples")
 
@@ -17,6 +18,7 @@ templates = Jinja2Templates(directory="app/templates")
 app.include_router(rotas_clientes)
 app.include_router(rotas_produtos)
 app.include_router(rotas_pedidos)
+app.include_router(rotas_carrinho)
 
 @app.on_event("startup")
 def iniciar_bancos():
